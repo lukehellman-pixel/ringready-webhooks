@@ -6,12 +6,20 @@ app.use(express.json());
 const CAL_API_KEY = 'cal_live_85d88d0c093a2c1c1c055a7fa445fe70';
 const EVENT_TYPE_ID = 5094224;
 
+// Indianapolis offset: EDT (UTC-4) Mar-Nov, EST (UTC-5) Nov-Mar
+function getIndianapolisOffset(date) {
+  const year = date.getUTCFullYear();
+  const dstStart = new Date(Date.UTC(year, 2, 8 + (7 - new Date(Date.UTC(year, 2, 1)).getUTCDay()) % 7, 7)); // 2nd Sun Mar 2am EST = 7am UTC
+  const dstEnd   = new Date(Date.UTC(year, 10,    (7 - new Date(Date.UTC(year, 10, 1)).getUTCDay()) % 7 + 1, 6)); // 1st Sun Nov 2am EDT = 6am UTC
+  return (date >= dstStart && date < dstEnd) ? '-04:00' : '-05:00';
+}
+
 // CHECK AVAILABILITY
 app.post('/check-availability', async (req, res) => {
   try {
     const args = req.body.args || req.body;
     const startTime = args.start_time;
-    
+
     let targetDate;
     if (startTime) {
       targetDate = new Date(startTime);
@@ -19,29 +27,34 @@ app.post('/check-availability', async (req, res) => {
       targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + 1);
     }
-    
-    const dayOfWeek = targetDate.getDay();
-    
+
+    const offset = getIndianapolisOffset(targetDate);
+    // Use local date components based on the offset
+    const offsetHours = parseInt(offset); // -4 or -5
+    const localMs = targetDate.getTime() + offsetHours * 3600000;
+    const local = new Date(localMs);
+    const dayOfWeek = local.getUTCDay();
+
     if (dayOfWeek === 0) {
       return res.json({ slots: [], message: "Salon is closed on Sundays" });
     }
-    
+
     const closingHour = (dayOfWeek === 5 || dayOfWeek === 6) ? 18 : 21;
     const slots = [];
-    const year = targetDate.getFullYear();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
+    const year  = local.getUTCFullYear();
+    const month = String(local.getUTCMonth() + 1).padStart(2, '0');
+    const day   = String(local.getUTCDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
-    
+
     for (let hour = 9; hour < closingHour; hour++) {
-      const displayHour = hour > 12 ? hour - 12 : (hour === 12 ? 12 : hour);
+      const displayHour = hour > 12 ? hour - 12 : hour;
       const ampm = hour >= 12 ? 'PM' : 'AM';
       slots.push({
-        time: `${dateStr}T${String(hour).padStart(2,'0')}:00:00.000Z`,
+        time: `${dateStr}T${String(hour).padStart(2, '0')}:00:00${offset}`,
         display: `${displayHour}:00 ${ampm}`
       });
     }
-    
+
     res.json({ slots });
   } catch (err) {
     console.error('Check availability error:', err.message);
