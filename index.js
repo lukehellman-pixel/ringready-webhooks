@@ -57,19 +57,18 @@ app.post('/book-appointment', async (req, res) => {
     
     const startTime = args.start || args.start_time;
     const startDate = new Date(startTime);
-    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
-    
+
     const bookingData = {
       eventTypeId: EVENT_TYPE_ID,
       start: startDate.toISOString(),
-      end: endDate.toISOString(),
       timeZone: 'America/Indiana/Indianapolis',
       language: 'en',
       metadata: {},
       responses: {
         name: args.name || 'Guest',
         email: args.email || 'guest@example.com',
-        phone: args.phone || '0000000000',
+        attendeePhoneNumber: args.phone || '',
+        location: { value: 'integrations:daily', optionValue: '' },
         notes: args.notes || ''
       }
     };
