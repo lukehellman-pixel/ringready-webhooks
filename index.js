@@ -107,6 +107,34 @@ app.post('/book-appointment', async (req, res) => {
   }
 });
 
+// SEND BOOKING LINK VIA ZAPIER SMS
+app.post('/send-booking-link', async (req, res) => {
+  try {
+    const args = req.body.args || req.body;
+    const name = args.name || 'there';
+    const phone = args.phone || args.phone_number;
+
+    if (!phone) {
+      return res.status(400).json({ success: false, error: 'Phone number required' });
+    }
+
+    const bookingUrl = 'https://kkbbsalon.com/#onlinebookings';
+    const message = `Hi ${name}! Here's your booking link for Kiss Kiss Bang Bang Salon: ${bookingUrl}`;
+
+    await axios.post('https://hooks.zapier.com/hooks/catch/27035340/unccwmt/', {
+      name,
+      phone,
+      message,
+      booking_url: bookingUrl
+    });
+
+    res.json({ success: true, message: 'Booking link sent via text' });
+  } catch (err) {
+    console.error('Send booking link error:', err.response?.data || err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/', (req, res) => res.send('RingReady webhooks running'));
 
 const PORT = process.env.PORT || 3000;
