@@ -107,7 +107,11 @@ app.post('/book-appointment', async (req, res) => {
   }
 });
 
-// SEND BOOKING LINK VIA ZAPIER SMS
+// SEND BOOKING LINK VIA TWILIO SMS
+const TWILIO_ACCOUNT_SID   = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN    = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_MESSAGING_SID = process.env.TWILIO_MESSAGING_SID;
+
 app.post('/send-booking-link', async (req, res) => {
   try {
     const args = req.body.args || req.body;
@@ -121,12 +125,19 @@ app.post('/send-booking-link', async (req, res) => {
     const bookingUrl = 'https://kkbbsalon.com/#onlinebookings';
     const message = `Hi ${name}! Here's your booking link for Kiss Kiss Bang Bang Salon: ${bookingUrl}`;
 
-    await axios.post('https://hooks.zapier.com/hooks/catch/27035340/unccwmt/', {
-      name,
-      phone,
-      message,
-      booking_url: bookingUrl
-    });
+    const params = new URLSearchParams();
+    params.append('To', phone);
+    params.append('MessagingServiceSid', TWILIO_MESSAGING_SID);
+    params.append('Body', message);
+
+    await axios.post(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+      params.toString(),
+      {
+        auth: { username: TWILIO_ACCOUNT_SID, password: TWILIO_AUTH_TOKEN },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      }
+    );
 
     res.json({ success: true, message: 'Booking link sent via text' });
   } catch (err) {
